@@ -1,0 +1,509 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Diagnostics;
+
+namespace VRP {
+  // TODO divide each local search into a class
+  // TODO Implement GVNS
+
+
+  class Grasp {
+    public Solution Solve(Graph graph, LocalSearch localSearch) {
+      int maxIterations = 1000;
+      int maxNoImprovementIterations = 100;
+      int noImprovementIterations = 0;
+      // for maxIterations iterations
+      // for noImprovementIterations iterations without improvement
+      //  Construct a solution
+      //  use local search to improve the solution
+      //  if the solution is better than the best solution so far, replace it.
+      Solution solution = ConstructSolution(graph);
+      for (int i = 0; i < maxIterations; i++) {
+        Solution newSolution = ConstructSolution(graph);
+        Solution improvedSolution = localSearch.Solve(newSolution, graph);
+        if (improvedSolution.Costs.Sum() < solution.Costs.Sum()) {
+          solution = improvedSolution;
+          Console.WriteLine($"{i} [{noImprovementIterations}] {solution.Costs[0]} {solution.Costs[1]} {{ {solution.Costs.Sum()} }}");
+          noImprovementIterations = 0;
+        } else {
+          noImprovementIterations++;
+        }
+        if (noImprovementIterations == maxNoImprovementIterations) {
+          break;
+        }
+      }
+      return solution;
+    }
+
+    /*
+      procedure Greedy_Randomized_construction(Seed)
+      Solution <- Void
+      Initialize the set of candidate elements;
+      Evaluate the incremental costs of the candidate elements;
+      while there exists at least one candidate do
+        For each car in the problem
+          If it is the first iteration
+            Select the first candidate element
+          Else
+            Build the restricted candidate list (5 nodes) using greedy algorithm
+            Select an element s from the RCL at random;
+            Solution <- Solution U {s};
+            Update the set of candidate elements;
+          end;
+        end;
+      end;
+      return Solution;
+      end;
+    */
+    // Grasp use my greedy procedure
+    private Solution ConstructSolution(Graph graph) {
+      int[,] distanceMatrix = graph.DistanceMatrix;
+      Random random = new Random();
+      List<int> available = new List<int>();
+      for (int i = 0; i < graph.Nodes.Count; i++) {
+        available.Add(i);
+      }
+
+      Solution result = new Solution();
+      for (int i = 0; i < graph.CarNumber; i++) {
+        result.Paths.Add(new List<Node>());
+        result.Paths[i].Add(graph.Nodes[0]);
+      }
+      result.Costs = new int[graph.CarNumber];
+      Node actualNode = graph.Nodes[0];
+      available.Remove(0);
+
+      while (available.Count > 0) {
+        for (int i = 0; i < graph.CarNumber; i++) {
+          if (available.Count == 0) {
+            break;
+          }
+          actualNode = result.Paths[i].Last();
+          List<Node> rcl = GetNext(2, available, actualNode, graph);
+          if (rcl.Count() == 0) {
+            break;
+          }
+          int randomId = random.Next(0, rcl.Count);
+          Node nextNode = rcl[randomId];
+          int distance = distanceMatrix[actualNode.Id, nextNode.Id];
+          for (int j = 0; j < available.Count; j++) {
+            if (available[j] == nextNode.Id) {
+              available.RemoveAt(j);
+              break;
+            }
+          }
+          result.Paths[i].Add(nextNode);
+          result.Costs[i] += distance;
+        }
+      }
+
+      for (int i = 0; i < graph.CarNumber; i++) {
+        result.Paths[i].Add(graph.Nodes[0]);
+        result.Costs[i] += distanceMatrix[result.Paths[i].Last().Id, graph.Nodes[0].Id];
+      }
+      return result;
+    }
+
+    // Get the closest n nodes to last from the candidate list using graph distance matrix
+    private List<Node> GetNext(int n, List<int> available, Node last, Graph graph) {
+      List<Node> result = new List<Node>();
+      for (int i = 0; i < graph.Nodes.Count; i++) {
+        if (available.Any((x) => x == i)) {
+          result.Add(graph.Nodes[i]);
+        }
+      }
+      result.Sort((x, y) => graph.DistanceMatrix[last.Id, x.Id] - graph.DistanceMatrix[last.Id, y.Id]);
+      return result.Take(n).ToList();
+    }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // /*
+    //   procedure insertIntra(Solution)
+    //   For each car in the problem
+    //     For each node in the car's solution
+    //       Calculate the cost of inserting the node in other places in the car's solution
+    //       If the current cost is better tha the best cost so far
+    //         BestCost <- CurrentCost
+    //         BestNode <- CurrentNode
+    //       end;
+    //     end;
+    //     If a there was a better cost inserting any node
+    //       Insert the best node in the car's solution
+    //     end;
+    //   end;
+    //   return Solution;
+    //   end;
+    // */
+    // private Solution insertIntra(Solution solution, Graph graph) {
+    //   int bestCost = int.MaxValue;
+    //   int bestFirstNode = -1;
+    //   int bestInsertPlace = -1;
+    //   bool updated = false;
+
+    //   Solution newSolution = new Solution();
+    //   newSolution.Paths = new List<List<Node>>();
+    //   // copy solution paths
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Paths.Add(new List<Node>());
+    //     for (int j = 0; j < solution.Paths[i].Count; j++) {
+    //       newSolution.Paths[i].Add(solution.Paths[i][j]);
+    //     }
+    //   }
+    //   newSolution.Costs = new int[graph.CarNumber];
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Costs[i] = solution.Costs[i];
+    //   }
+
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     for (int j = 1; j < solution.Paths[i].Count - 1; j++) {
+    //       for (int k = 1; k < solution.Paths[i].Count - 1; k++) {
+    //         if (j != k) {
+    //           int newCost = solution.Costs[i];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[i][j - 1].Id, solution.Paths[i][j].Id];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[i][j].Id, solution.Paths[i][j + 1].Id];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][k + 1].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[i][j - 1].Id, solution.Paths[i][k].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[i][j].Id, solution.Paths[i][k + 1].Id];
+
+    //           if (solution.Paths[i][j + 1].Id == solution.Paths[i][k].Id) {
+    //             newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j].Id];
+    //           } else {
+    //             newCost -= graph.DistanceMatrix[solution.Paths[i][k - 1].Id, solution.Paths[i][k].Id];
+    //             newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j + 1].Id];
+    //             newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j].Id];
+    //           }
+
+    //           if (newCost < bestCost) {
+    //             bestCost = newCost;
+    //             bestFirstNode = j;
+    //             bestInsertPlace = k;
+    //             updated = true;
+    //           }
+    //         }
+    //       }
+    //     }
+    //     if (updated) {
+    //       newSolution.Paths[i].Insert(bestInsertPlace, solution.Paths[i][bestFirstNode]);
+    //       newSolution.Paths[i].RemoveAt(bestFirstNode);
+    //       newSolution.Costs = CalculateCosts(newSolution.Paths, graph);
+    //       updated = false;
+    //       bestCost = int.MaxValue;
+    //     }
+    //   }
+    //   return newSolution;
+    // }
+
+    // /*
+    //   procedure inserInter(Solution)
+    //   For each car in the problem
+    //     For each other car in the problem
+    //       For each node in the car's solution
+    //         Calculate the cost of inserting the node in places in the other car's solution
+    //         If the current cost is better tha the best cost so far
+    //           If the insertion does not surpass the limit of nodes in the solution
+    //             BestCost <- CurrentCost
+    //             BestNode <- CurrentNode
+    //           end;
+    //         end;
+    //       end;
+    //       If a there was a better cost inserting any node
+    //         Insert the best node in the others car's solution
+    //       end;
+    //     end;
+    //   end;
+    //   return Solution;
+    //   end;
+
+    // */
+    // private Solution insertInter(Solution solution, Graph graph) {
+    //   int bestCost = int.MaxValue;
+    //   int bestFirstNode = -1;
+    //   int bestInsertPlace = -1;
+    //   bool updated = false;
+
+    //   Solution newSolution = new Solution();
+    //   newSolution.Paths = new List<List<Node>>();
+    //   // copy solution paths
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Paths.Add(new List<Node>());
+    //     for (int j = 0; j < solution.Paths[i].Count; j++) {
+    //       newSolution.Paths[i].Add(solution.Paths[i][j]);
+    //     }
+    //   }
+    //   newSolution.Costs = new int[graph.CarNumber];
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Costs[i] = solution.Costs[i];
+    //   }
+
+    //   for (int car1 = 0; car1 < graph.CarNumber; car1++) {
+    //     for (int car2 = 0; car2 < graph.CarNumber; car2++) {
+    //       if (car1 != car2) {
+    //         for (int j = 1; j < solution.Paths[car1].Count - 1; j++) {
+    //           for (int k = 1; k < solution.Paths[car2].Count - 1; k++) {
+    //             if (j != k) {
+    //               int newCost = solution.Costs.Sum();
+    //               newCost -= graph.DistanceMatrix[solution.Paths[car1][j - 1].Id, solution.Paths[car1][j].Id];
+    //               newCost -= graph.DistanceMatrix[solution.Paths[car1][j].Id, solution.Paths[car1][j + 1].Id];
+    //               newCost -= graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //               newCost += graph.DistanceMatrix[solution.Paths[car2][k - 1].Id, solution.Paths[car2][k].Id];
+    //               newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //               newCost -= graph.DistanceMatrix[solution.Paths[car2][k - 1].Id, solution.Paths[car2][k].Id];
+    //               newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //               newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k].Id];
+
+    //               if (newCost < bestCost) {
+    //                 bestCost = newCost;
+    //                 bestFirstNode = j;
+    //                 bestInsertPlace = k;
+    //                 updated = true;
+    //               }
+    //             }
+    //           }
+    //         }
+    //         if (updated) {
+    //           newSolution.Paths[car2].Insert(bestInsertPlace, solution.Paths[car1][bestFirstNode]);
+    //           newSolution.Paths[car1].RemoveAt(bestFirstNode);
+    //           newSolution.Costs = CalculateCosts(newSolution.Paths, graph);
+    //           updated = false;
+    //           bestCost = int.MaxValue;
+    //         }
+    //       }
+    //     }
+    //   }
+    //   return newSolution;
+    // }
+
+
+    // /*
+    //   procedure SwapIntraRute(Solution)
+    //   For each car in the problem
+    //     For each node in the car's solution
+    //       For each node in the car's solution
+    //         If the nodes are not the same
+    //           swapCost = deltaCost(node1, node2)
+    //           If swapCost < bestSwapCost
+    //             bestSwapCost[car] = swapCost
+    //             bestSwapNode1[car] = node1
+    //             bestSwapNode2[car] = node2
+    //           end;
+    //         end;
+    //       end;
+    //     end;
+    //     If a bettser cost was found
+    //       Swap the nodes
+    //     end;
+    //   end;
+    //   return newSolution;
+    //   end;
+    // */
+    // private Solution swapIntraRute(Solution solution, Graph graph) {
+    //   int bestCost = int.MaxValue;
+    //   int bestFirstNode = -1;
+    //   int bestSecondNode = -1;
+    //   bool updated = false;
+
+    //   Solution newSolution = new Solution();
+    //   newSolution.Paths = new List<List<Node>>();
+    //   // copy solution paths
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Paths.Add(new List<Node>());
+    //     for (int j = 0; j < solution.Paths[i].Count; j++) {
+    //       newSolution.Paths[i].Add(solution.Paths[i][j]);
+    //     }
+    //   }
+    //   newSolution.Costs = new int[graph.CarNumber];
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Costs[i] = solution.Costs[i];
+    //   }
+
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     for (int j = 1; j < solution.Paths[i].Count - 1; j++) {
+    //       for (int k = j + 1; k < solution.Paths[i].Count - 1; k++) {
+    //         // if the swap produces a lower cost than the current best
+    //         int newCost = solution.Costs[i];
+    //         newCost -= graph.DistanceMatrix[solution.Paths[i][j - 1].Id, solution.Paths[i][j].Id];
+    //         newCost -= graph.DistanceMatrix[solution.Paths[i][j].Id, solution.Paths[i][j + 1].Id];
+    //         newCost -= graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][k + 1].Id];
+    //         newCost += graph.DistanceMatrix[solution.Paths[i][j - 1].Id, solution.Paths[i][k].Id];
+    //         newCost += graph.DistanceMatrix[solution.Paths[i][j].Id, solution.Paths[i][k + 1].Id];
+
+    //         if (solution.Paths[i][j + 1].Id == solution.Paths[i][k].Id) {
+    //           newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j].Id];
+    //         } else {
+    //           newCost -= graph.DistanceMatrix[solution.Paths[i][k - 1].Id, solution.Paths[i][k].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j + 1].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[i][k].Id, solution.Paths[i][j].Id];
+    //         }
+
+    //         if (newCost < bestCost) {
+    //           bestCost = newCost;
+    //           bestFirstNode = j;
+    //           bestSecondNode = k;
+    //           updated = true;
+    //         }
+    //       }
+    //     }
+    //     if (updated) {
+    //       newSolution.Paths[i].RemoveAt(bestFirstNode);
+    //       newSolution.Paths[i].Insert(bestFirstNode, graph.Nodes[bestSecondNode]);
+    //       newSolution.Paths[i].RemoveAt(bestSecondNode);
+    //       newSolution.Paths[i].Insert(bestSecondNode, graph.Nodes[bestFirstNode]);
+    //       newSolution.Costs[i] = bestCost;
+    //       updated = false;
+    //       bestCost = int.MaxValue;
+    //     }
+    //   }
+    //   return newSolution;
+    // }
+
+    // /*
+    //   procedure SwapInterRute(Solution)
+    //   For each car in the problem
+    //     For each other car2 in the problem
+    //       For each node in the car's solution
+    //         For each node in the car2 solution
+    //           If the nodes are not the same
+    //             swapCost = deltaCost(node1, node2)
+    //             If swapCost < bestSwapCost
+    //               bestSwapCost[car] = swapCost
+    //               bestSwapNode1[car] = node1
+    //               bestSwapNode2[car2] = node2
+    //             end;
+    //           end;
+    //         end;
+    //       end;
+    //     If a bettser cost was found
+    //       Swap the nodes
+    //     end;
+    //     end;
+    //   end;
+    //   return newSolution;
+    //   end;
+    // */
+    // private Solution swapInterRute(Solution solution, Graph graph) {
+    //   int bestCost = int.MaxValue;
+    //   int bestFirstNode = -1;
+    //   int bestSecondNode = -1;
+    //   bool updated = false;
+
+    //   Solution newSolution = new Solution();
+    //   newSolution.Paths = new List<List<Node>>();
+    //   // copy solution paths
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Paths.Add(new List<Node>());
+    //     for (int j = 0; j < solution.Paths[i].Count; j++) {
+    //       newSolution.Paths[i].Add(solution.Paths[i][j]);
+    //     }
+    //   }
+    //   newSolution.Costs = new int[graph.CarNumber];
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     newSolution.Costs[i] = solution.Costs[i];
+    //   }
+
+    //   for (int car1 = 0; car1 < graph.CarNumber; car1++) {
+    //     for (int car2 = car1 + 1; car2 < graph.CarNumber; car2++) {
+    //       for (int j = 1; j < solution.Paths[car1].Count - 1; j++) {
+    //         for (int k = 1; k < solution.Paths[car2].Count - 1; k++) {
+    //           int newCost = solution.Costs.Sum();
+    //           newCost -= graph.DistanceMatrix[solution.Paths[car1][j - 1].Id, solution.Paths[car1][j].Id];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[car1][j].Id, solution.Paths[car1][j + 1].Id];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[car2][k - 1].Id, solution.Paths[car2][k].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //           newCost -= graph.DistanceMatrix[solution.Paths[car2][k - 1].Id, solution.Paths[car2][k].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k + 1].Id];
+    //           newCost += graph.DistanceMatrix[solution.Paths[car2][k].Id, solution.Paths[car2][k].Id];
+
+
+    //           if (newCost < bestCost) {
+    //             bestCost = newCost;
+    //             bestFirstNode = j;
+    //             bestSecondNode = k;
+    //             updated = true;
+    //           }
+    //         }
+    //       }
+    //       if (updated) {
+    //         newSolution.Paths[car1].RemoveAt(bestFirstNode);
+    //         newSolution.Paths[car2].Insert(bestFirstNode, graph.Nodes[bestSecondNode]);
+    //         newSolution.Paths[car2].RemoveAt(bestSecondNode);
+    //         newSolution.Paths[car1].Insert(bestSecondNode, graph.Nodes[bestFirstNode]);
+    //         updated = false;
+    //         bestCost = int.MaxValue;
+    //       }
+    //     }
+    //   }
+    //   return newSolution;
+    // }
+
+    // /*
+    //   procedure 2optSwap(route, i, k) {
+    //     1. take route[0] to route[i-1] and add them in order to new_route
+    //     2. take route[i] to route[k] and add them in reverse order to new_route
+    //     3. take route[k+1] to end and add them in order to new_route
+    //     return new_route;
+    //   }
+    // */
+    // private List<Node> twoOptSwap(List<Node> route, int i, int k) {
+    //   // use addRange and reverse to make it faster
+    //   List<Node> newRoute = new List<Node>();
+    //   newRoute.AddRange(route.GetRange(0, i));
+    //   List<Node> subRoute = route.GetRange(i, k - i + 1);
+    //   subRoute.Reverse();
+    //   newRoute.AddRange(subRoute);
+    //   newRoute.AddRange(route.GetRange(k + 1, route.Count - k - 1));
+    //   return newRoute;
+    // }
+
+    // /*
+    //   procedure 2opt(Solution)
+    //   For each car in the problem
+    //     For each node in the car's solution
+    //       For each node in the car's solution
+    //         If the nodes are not the same
+    //           twoOptSwap the nodes
+    //           If the solution improves
+    //             Replace the old solution with the new one
+    //           Else
+    //             Restore the old solution
+    //           end;
+    //         end;
+    //       end;
+    //     end;
+    //   end;
+    // */
+    // private Solution twoOpt(Solution solution, Graph graph) {
+    //   Solution newSolution = new Solution();
+    //   newSolution.Paths = solution.Paths;
+    //   newSolution.Costs = solution.Costs;
+    //   for (int i = 0; i < graph.CarNumber; i++) {
+    //     for (int j = 0; j < solution.Paths[i].Count - 1; j++) {
+    //       for (int k = j + 1; k < solution.Paths[i].Count - 1; k++) {
+    //         if (j != k) {
+    //           newSolution.Paths[i] = twoOptSwap(solution.Paths[i], j, k);
+    //           newSolution.Costs = CalculateCosts(newSolution.Paths, graph);
+    //           if (newSolution.Costs.Sum() < solution.Costs.Sum()) {
+    //             solution.Paths[i] = newSolution.Paths[i];
+    //             solution.Costs = newSolution.Costs;
+    //           } else {
+    //             newSolution.Paths[i] = solution.Paths[i];
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    //   return solution;
+    // }
+
+
+    // // Calculate the costs of the solution
+    // private int[] CalculateCosts(List<List<Node>> paths, Graph graph) {
+    //   List<int> costs = new List<int>();
+    //   foreach (List<Node> path in paths) {
+    //     costs.Add(graph.CalculatePathValue(path));
+    //   }
+    //   return costs.ToArray();
+    // }
+  }
+}

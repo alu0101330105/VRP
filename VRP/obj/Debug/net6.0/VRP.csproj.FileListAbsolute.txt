@@ -1,0 +1,15 @@
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\bin\Debug\net6.0\VRP.exe
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\bin\Debug\net6.0\VRP.deps.json
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\bin\Debug\net6.0\VRP.runtimeconfig.json
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\bin\Debug\net6.0\VRP.dll
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\bin\Debug\net6.0\VRP.pdb
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.csproj.AssemblyReference.cache
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.AssemblyInfoInputs.cache
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.AssemblyInfo.cs
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.csproj.CoreCompileInputs.cache
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.dll
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\refint\VRP.dll
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.pdb
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\VRP.genruntimeconfig.cache
+C:\Users\Jow\Documents\.Uni\Tercero\DAA\VRP\VRP\obj\Debug\net6.0\ref\VRP.dll
